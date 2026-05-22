@@ -1,0 +1,162 @@
+#!/bin/bash
+# pandock - The Dockerized Pandoc Wrapper
+
+IMAGE_NAME="pandock:latest"
+WATCH=false
+CLEAN=false
+MODE="default"
+FILES=()
+PANDOC_ARGS=()
+OUT_FILE=""
+CUSTOM_CMD=()
+
+# --- Define Your Defaults Here ---
+DEFAULT_PANDOC_ARGS=(
+    "-V" "papersize:A4"
+    "-V" "documentclass=article"
+    "-V" "geometry:margin=1in"
+    "-V" "colorlinks"
+    # "-V" "lot"
+    "--toc"
+    "--pdf-engine=xelatex"
+    # "-V" "monofont=DejaVu Sans Mono"
+    # "-V" "monofont=Source Code Pro"
+    "-V" "monofont=Ubuntu Mono"
+    "--highlight-style=tango"
+    "-V" "header-includes=\\usepackage{hyperref} \\usepackage{cleveref} \\usepackage{float} \\floatplacement{figure}{H}"
+    # "-V" "header-includes=\fvset{fontsize=\footnotesize}"
+)
+
+show_help() {
+    echo "Usage: ./pandock [OPTIONS] <file.md> [PANDOC ARGS...]"
+    echo ""
+    echo "Options:"
+    echo "  -i, --interactive Open an interactive bash shell inside the container"
+    echo "  -c, --command   Run an arbitrary command inside the container (must be first option)"
+    echo "  --watch         Watch the input markdown file and recompile on save"
+    echo "  --clean         Remove temporary diagram files (*.pdf, *.svg) and LaTeX logs"
+    echo "  --keep-svg      Generate the PDF, but also generate and keep diagrams as SVGs"
+    echo "  --svg-only      Only generate the SVG diagrams from code blocks (no PDF)"
+    echo "  --help, -h      Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./pandock example.md                         (Compiles natively using defaults)"
+    echo "  ./pandock doc.md -V papersize:letter         (Overrides default A4 paper size)"
+    echo "  ./pandock doc.md --pdf-engine=lualatex       (Overrides default xelatex engine)"
+    echo "  ./pandock --watch doc.md                     (Live rebuilds doc.pdf on file save)"
+    echo "  ./pandock -c ls -lart                        (Runs 'ls -lart' inside the container)"
+    echo "  ./pandock -i                                 (Opens an interactive shell in the container)"
+}
+
+# --- Smart Argument Parser ---
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -i|--interactive)
+            CUSTOM_CMD=("bash")
+            shift
+            ;;
+        -c|--command)
+            shift
+            CUSTOM_CMD=("$@")
+            break # Stop parsing, everything else is the command
+            ;;
+        --watch) WATCH=true; shift ;;
+        --clean) CLEAN=true; shift ;;
+        --keep-svg) MODE="keep-svg"; shift ;;
+        --svg-only) MODE="svg-only"; shift ;;
+        --help|-h) show_help; exit 0 ;;
+        -o|--output) 
+            OUT_FILE="$2"
+            PANDOC_ARGS+=("$1" "$2")
+            shift 2 
+            ;;
+        -V|--variable|-M|--metadata|-f|--from|-t|--to|--pdf-engine|--highlight-style|--template)
+            # Catch standard Pandoc options that take exactly one space-separated argument
+            PANDOC_ARGS+=("$1" "$2")
+            shift 2 
+            ;;
+        -*) 
+            # Catch all other hyphenated flags (e.g., --toc)
+            PANDOC_ARGS+=("$1")
+            shift 
+            ;;
+        *) 
+            # Everything else is assumed to be an input file
+            FILES+=("$1")
+            shift 
+            ;;
+    esac
+done
+
+# Base docker execution command
+RUN_DOCKER=(docker run -it --rm --hostname pandock -v "$PWD":/work -w /work -u "$(id -u):$(id -g)" -e HOME=/tmp "$IMAGE_NAME")
+
+# --- Execute Custom Command or Interactive Shell ---
+if [ ${#CUSTOM_CMD[@]} -gt 0 ]; then
+    "${RUN_DOCKER[@]}" "${CUSTOM_CMD[@]}"
+    exit $?
+fi
+
+# --- Pre-flight Checks for Pandoc ---
+if [ ${#FILES[@]} -eq 0 ]; then
+    echo "Error: No input file provided."
+    show_help
+    exit 1
+fi
+
+if [ -z "$OUT_FILE" ]; then
+    OUT_FILE="${FILES[0]%.*}.pdf"
+    PANDOC_ARGS+=("-o" "$OUT_FILE")
+fi
+
+# We use printf "%q" to safely escape spaces inside array elements 
+# (e.g. "Ubuntu Mono" becomes Ubuntu\ Mono) before passing them to the container's bash.
+FILES_Q=$(printf "%q " "${FILES[@]}")
+DEFAULTS_Q=$(printf "%q " "${DEFAULT_PANDOC_ARGS[@]}")
+USER_ARGS_Q=$(printf "%q " "${PANDOC_ARGS[@]}")
+
+# Build the execution string
+DOCKER_CMD="echo \"[pandock] Processing ${FILES[0]}...\"; "
+
+if [ "$MODE" = "keep-svg" ] || [ "$MODE" = "svg-only" ]; then
+    DOCKER_CMD+="pandoc $FILES_Q -t html -o /dev/null --lua-filter=/opt/pandock/diagram.lua; "
+fi
+
+if [ "$MODE" != "svg-only" ]; then
+    # User arguments are appended AFTER defaults so overrides work natively
+    DOCKER_CMD+="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/pandock/diagram.lua; "
+fi
+
+if [ "$CLEAN" = true ] || [ "$MODE" = "default" ]; then
+    DOCKER_CMD+="rm -f mermaid-*.pdf plantuml-*.pdf dot-*.pdf *.aux *.log *.out *.tex; "
+    if [ "$MODE" != "keep-svg" ] && [ "$MODE" != "svg-only" ]; then
+        DOCKER_CMD+="rm -f mermaid-*.svg plantuml-*.svg dot-*.svg mermaid-*.png plantuml-*.png dot-*.png; "
+    fi
+fi
+
+# --- Execution Logic ---
+
+if [ "$WATCH" = true ]; then
+    echo "[pandock] Watch mode active (Polling). Monitoring ${FILES[0]}..."
+
+    # Polling loop: 
+    # 1. Get the current timestamp of the file.
+    # 2. Loop forever, checking if the timestamp has changed.
+    # 3. If it has, run the pandoc command.
+
+    "${RUN_DOCKER[@]}" bash -c "
+        LAST_MODIFIED=0
+        while true; do
+            CURRENT_MODIFIED=\$(stat -c %Y \"${FILES[0]}\")
+            if [ \"\$CURRENT_MODIFIED\" -ne \"\$LAST_MODIFIED\" ]; then
+                $DOCKER_CMD
+                LAST_MODIFIED=\$CURRENT_MODIFIED
+                echo \"[pandock] Rebuild complete. Waiting for changes...\"
+            fi
+            sleep 0.2
+        done
+    "
+else
+    # Standard non-watch execution
+    "${RUN_DOCKER[@]}" bash -c "$DOCKER_CMD"
+fi

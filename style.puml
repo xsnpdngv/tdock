@@ -1,0 +1,46 @@
+' style.puml
+
+' Global Defaults
+skinparam Shadowing false
+skinparam FontName Roboto
+skinparam FontSize 13
+skinparam BackgroundColor transparent
+skinparam RoundCorner 4
+
+' Colors (Professional Slate + Charcoal)
+!define BG_COLOR #F8F9FA
+!define BORDER_COLOR #6C757D
+!define FONT_COLOR #343A40
+!define ARROW_COLOR #495057
+
+' General Element Styling
+skinparam {
+    BackgroundColor BG_COLOR
+    BorderColor BORDER_COLOR
+    FontColor FONT_COLOR
+    ArrowColor ARROW_COLOR
+}
+
+' Sequence Diagram Specifics
+skinparam participant {
+    BackgroundColor #FFFFFF
+    BorderColor BORDER_COLOR
+}
+skinparam note {
+    BackgroundColor #FDFDFD
+    BorderColor BORDER_COLOR
+}
+
+' Component/Activity/Class Defaults
+skinparam component {
+    BackgroundColor #FFFFFF
+    BorderColor BORDER_COLOR
+}
+skinparam activity {
+    BackgroundColor #FFFFFF
+    BorderColor BORDER_COLOR
+}
+skinparam diamond {
+    BackgroundColor #FFFFFF
+    BorderColor BORDER_COLOR
+}
