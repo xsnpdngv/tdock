@@ -126,7 +126,7 @@ This is an example reference to Figure \ref{fig:sde}.
 
 ```plantuml {width=40% caption="PlantUML Sequence Diagram Example" placement="H" label="fig:sde"}
 @startuml
-!include style.puml
+'!include style.puml
 participant "Application Server" as AS
 participant "Core Network" as Core
 
