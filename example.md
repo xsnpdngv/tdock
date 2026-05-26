@@ -130,6 +130,7 @@ This is an example reference to Figure \ref{fig:sde}.
 '| width: 70%
 '| placement: H
 '| label: fig:sde
+@startuml
 title Client-Server Interaction
 
 participant "Client" as C
@@ -185,6 +186,7 @@ else
     deactivate S
     destroy S
 end
+@enduml
 ```
 
 ---
