@@ -117,12 +117,12 @@ case "$EXT" in
     md|markdown)
         # Standard Markdown mode
         ;;
-    puml|mmd|mermaid|dot|gv)
+    puml|wsd|mmd|mermaid|dot|gv)
         MODE="render"
         RENDER_FILE="$MAIN_FILE"
         ;;
     *)
-        echo "Error: Unsupported extension '.$EXT'. Supported formats: .md, .puml, .mmd, .dot, .gv"
+        echo "Error: Unsupported extension '.$EXT'. Supported formats: .md, .puml, .wsd, .mmd, .dot, .gv"
         exit 1
         ;;
 esac
@@ -132,6 +132,10 @@ if [ "$MODE" = "render" ]; then
     case "$EXT" in
         puml)
             DOCKER_CMD="plantuml -tsvg \"$RENDER_FILE\""
+            ;;
+        wsd)
+            # Dynamically wrap the content in PlantUML tags and pipe via stdin
+            DOCKER_CMD="{ echo '@startuml'; cat \"$RENDER_FILE\"; echo '@enduml'; } | plantuml -pipe -tsvg > \"${BASENAME}.svg\""
             ;;
         mmd|mermaid)
             DOCKER_CMD="mmdc -i \"$RENDER_FILE\" -o \"${BASENAME}.svg\""

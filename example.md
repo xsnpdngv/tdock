@@ -11,9 +11,11 @@ build environment. It tests standard markdown rendering, syntax
 highlighting for various languages, and the automatic vectorization of
 diagrams.
 
-**Pandoc:** [The Universal Document Converter](https://pandoc.org/MANUAL.html)
-
-Also check out the [Pandoc Examples](https://pandoc.org/demos.html) for advanced formatting.
+For the capabilities of the underlying Markdown engine, see the official
+**Pandoc:**
+[The Universal Document *Converter](https://pandoc.org/MANUAL.html)
+documentation. [Pandoc Examples](https://pandoc.org/demos.html) is also
+worth a check.
 
 
 # Styling
