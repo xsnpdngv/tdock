@@ -11,7 +11,23 @@ highlighting, and common Google/Ubuntu fonts.
 You only need Docker installed. To build the local image:
 
 ```bash
+git clone https://github.com/xsnpdngv/tdock
+cd tdock
 make build
+```
+
+Optionally, you can install the `tdock` script globally for easier access...
+
+```bash
+# by copying the script to your local bin for easy access:
+cp tdock /usr/local/bin/tdock
+
+# or creating an alias in your shell config:
+echo "alias tdock='/path/to/tdock/tdock'" >> ~/.bashrc
+source ~/.bashrc
+
+# or creating a symlink to it:
+ln -s /path/to/tdock/tdock ~/bin/tdock
 ```
 
 
@@ -30,6 +46,10 @@ Compile the provided example.md file into a PDF:
 ./tdock example.md
 ```
 
+See the prepared [example.pdf](example.pdf) for the output. It includes
+syntax-highlighted code blocks and rendered diagrams, demonstrating the
+capabilities of the tool.
+
 
 ### Handling Diagrams (SVGs vs PDFs)
 
@@ -40,6 +60,7 @@ If you want to compile standalone diagrams for web use (SVG):
 
 ```bash
 ./tdock seq-diag.puml
+./tdock webseq-diag.wsd
 ./tdock mermaid-diag.mmd
 ./tdock graphviz.dot
 ```

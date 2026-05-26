@@ -13,7 +13,7 @@ diagrams.
 
 For the capabilities of the underlying Markdown engine, see the official
 **Pandoc:**
-[The Universal Document *Converter](https://pandoc.org/MANUAL.html)
+[The Universal Document Converter](https://pandoc.org/MANUAL.html)
 documentation. [Pandoc Examples](https://pandoc.org/demos.html) is also
 worth a check.
 
@@ -117,6 +117,10 @@ def fibonacci(n):
 The blocks below are automatically parsed by the Pandoc diagram Lua
 filter, rendered via their respective engines, and embedded perfectly
 into the PDF using XeLaTeX.
+
+On GitHub, Mermaid code-blocks are automatically rendered, and plantUML
+blocks can be visualized too with the
+[PlantUML for GitHub Chrome Extension](https://github.com/plantuml/plantuml-for-github)
 
 
 ## PlantUML
