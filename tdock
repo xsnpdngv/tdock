@@ -1,0 +1,187 @@
+#!/bin/bash
+# tdock - The Dockerized Tech Documentation Compiler
+
+IMAGE_NAME="tdock:ubuntu26.04"
+WATCH=false
+MODE="default"
+FILES=()
+PANDOC_ARGS=()
+OUT_FILE=""
+CUSTOM_CMD=()
+
+# Default to host user mapping
+DOCKER_USER="--user $(id -u):$(id -g)"
+
+# --- Define Your Defaults Here ---
+DEFAULT_PANDOC_ARGS=(
+    "-V" "papersize:A4"
+    "-V" "documentclass=article"
+    "-V" "geometry:margin=1in"
+    "-V" "colorlinks"
+    # "-V" "lot"
+    "--toc"
+    "--pdf-engine=xelatex"
+    # "-V" "monofont=DejaVu Sans Mono"
+    # "-V" "monofont=Source Code Pro"
+    "-V" "monofont=Ubuntu Mono"
+    "--highlight-style=tango"
+    "-V" "header-includes=\\usepackage{hyperref} \\usepackage{cleveref} \\usepackage{float} \\floatplacement{figure}{H}"
+    # "-V" "header-includes=\fvset{fontsize=\footnotesize}"
+)
+
+show_help() {
+    echo "Usage: ./tdock [OPTIONS] <file> [PANDOC ARGS...]"
+    echo ""
+    echo "Options:"
+    echo "  -i, --interactive Open an interactive bash shell inside the container"
+    echo "  --root            Run the container as the root user instead of the host user"
+    echo "  -c, --command     Run an arbitrary command inside the container"
+    echo "  --watch           Watch the input file and recompile on save"
+    echo "  --help, -h        Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  ./tdock example.md                           (Compiles natively using defaults)"
+    echo "  ./tdock architecture.puml                    (Automatically detects diagram and renders to SVG)"
+    echo "  ./tdock doc.md -V papersize:letter           (Overrides default A4 paper size)"
+    echo "  ./tdock --watch doc.md                       (Live rebuilds output on file save)"
+    echo "  ./tdock -c ls -lart                          (Runs 'ls -lart' inside the container)"
+    echo "  ./tdock -i                                   (Opens an interactive shell in the container)"
+    echo "  ./tdock --root -i                            (Opens an interactive shell as root in the container)"
+}
+
+# --- Smart Argument Parser ---
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -i|--interactive)
+            CUSTOM_CMD=("bash")
+            shift
+            ;;
+        --root)
+            DOCKER_USER="--user 0:0"
+            shift
+            ;;
+        -c|--command)
+            shift
+            CUSTOM_CMD=("$@")
+            break
+            ;;
+        --watch) WATCH=true; shift ;;
+        --help|-h) show_help; exit 0 ;;
+        -o|--output)
+            OUT_FILE="$2"
+            PANDOC_ARGS+=("$1" "$2")
+            shift 2
+            ;;
+        -V|--variable|-M|--metadata|-f|--from|-t|--to|--pdf-engine|--highlight-style|--template)
+            # Catch standard Pandoc options that take exactly one space-separated argument
+            PANDOC_ARGS+=("$1" "$2")
+            shift 2
+            ;;
+        -*)
+            # Catch all other hyphenated flags (e.g., --toc)
+            PANDOC_ARGS+=("$1")
+            shift
+            ;;
+        *)
+            # Everything else is assumed to be an input file
+            FILES+=("$1")
+            shift
+            ;;
+    esac
+done
+
+# --- Base docker execution command built dynamically ---
+# Evaluated HERE to guarantee $DOCKER_USER reflects the --root override
+RUN_DOCKER=(docker run -it --rm --hostname pandock -v "$PWD":/work -w /work $DOCKER_USER -e HOME=/tmp "$IMAGE_NAME")
+
+# --- Execute Custom Command or Interactive Shell ---
+if [ ${#CUSTOM_CMD[@]} -gt 0 ]; then
+    echo -e "\n[tdock] Executing raw command:\n"
+    echo "${CUSTOM_CMD[*]}"
+    "${RUN_DOCKER[@]}" "${CUSTOM_CMD[@]}"
+    exit $?
+fi
+
+# --- Pre-flight Checks & File Extension Detection ---
+if [ ${#FILES[@]} -eq 0 ]; then
+    echo "Error: No input file provided."
+    show_help
+    exit 1
+fi
+
+MAIN_FILE="${FILES[0]}"
+EXT="${MAIN_FILE##*.}"
+BASENAME="${MAIN_FILE%.*}"
+
+case "$EXT" in
+    md|markdown)
+        # Standard Markdown mode
+        ;;
+    puml|mmd|mermaid|dot|gv)
+        MODE="render"
+        RENDER_FILE="$MAIN_FILE"
+        ;;
+    *)
+        echo "Error: Unsupported extension '.$EXT'. Supported formats: .md, .puml, .mmd, .dot, .gv"
+        exit 1
+        ;;
+esac
+
+# --- Command String Construction ---
+if [ "$MODE" = "render" ]; then
+    case "$EXT" in
+        puml)
+            DOCKER_CMD="plantuml -tsvg \"$RENDER_FILE\""
+            ;;
+        mmd|mermaid)
+            DOCKER_CMD="mmdc -i \"$RENDER_FILE\" -o \"${BASENAME}.svg\""
+            ;;
+        dot|gv)
+            DOCKER_CMD="dot -Tsvg \"$RENDER_FILE\" -o \"${BASENAME}.svg\""
+            ;;
+    esac
+else
+    # --- Pre-flight Checks for Pandoc ---
+    if [ -z "$OUT_FILE" ]; then
+        OUT_FILE="${BASENAME}.pdf"
+        PANDOC_ARGS+=("-o" "$OUT_FILE")
+    fi
+
+    # We use printf "%q" to safely escape spaces inside array elements
+    # (e.g. "Ubuntu Mono" becomes Ubuntu\ Mono) before passing them to the container's bash.
+    FILES_Q=$(printf "%q " "${FILES[@]}")
+    DEFAULTS_Q=$(printf "%q " "${DEFAULT_PANDOC_ARGS[@]}")
+    USER_ARGS_Q=$(printf "%q " "${PANDOC_ARGS[@]}")
+
+    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/tdock/diagram.lua; "
+fi
+
+# --- Execution Logic ---
+if [ "$WATCH" = true ]; then
+    echo "[tdock] Watching ${FILES[0]}..."
+    echo "[tdock] Executing command in container on change:"
+    echo
+
+    # Polling loop:
+    # 1. Get the current timestamp of the file.
+    # 2. Loop forever, checking if the timestamp has changed.
+    # 3. If it has, run the execution command.
+    "${RUN_DOCKER[@]}" bash -c "
+        LAST_MODIFIED=0
+        while true; do
+            CURRENT_MODIFIED=\$(stat -c %Y \"${FILES[0]}\")
+            if [ \"\$CURRENT_MODIFIED\" -ne \"\$LAST_MODIFIED\" ]; then
+                echo \"$DOCKER_CMD\"
+                $DOCKER_CMD
+                LAST_MODIFIED=\$CURRENT_MODIFIED
+                echo -e \"\\n\\t[done, waiting for changes...]\\n\"
+            fi
+            sleep 0.2
+        done
+    "
+else
+    # Standard non-watch execution
+    echo -e "\n[tdock] Executing command in container:\n"
+    echo "$DOCKER_CMD"
+    "${RUN_DOCKER[@]}" bash -c "$DOCKER_CMD"
+fi

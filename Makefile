@@ -1,5 +1,5 @@
-IMAGE_NAME ?= pandock
-VERSION ?= latest
+IMAGE_NAME ?= tdock
+VERSION ?= ubuntu26.04
 
 .PHONY: all build push clean-image
 
