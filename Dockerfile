@@ -6,6 +6,8 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Use the native OS Chromium, requires xtradeb PPA for Ubuntu 24.04 and later
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
+ARG IMAGE_NAME="tdock"
+
 RUN set -e; \
     PACKAGES="\
         pandoc \
@@ -61,11 +63,16 @@ RUN fc-cache -fv
 
 RUN npm install -g @mermaid-js/mermaid-cli
 
-RUN mkdir -p /opt/tdock && \
-    echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox"], "executablePath": "/usr/bin/chromium"}' > /opt/tdock/puppeteer-config.json
+RUN mkdir -p /opt/${IMAGE_NAME} && \
+    echo '{"args": ["--no-sandbox", "--disable-setuid-sandbox"], "executablePath": "/usr/bin/chromium"}' > /opt/${IMAGE_NAME}/puppeteer-config.json
 
+# 1. Create a Mermaid config
+RUN mkdir -p /opt/${IMAGE_NAME} && \
+    echo '{ "theme": "neutral", "fontFamily": "monospace" }' > /opt/${IMAGE_NAME}/mermaid-config.json
+
+# 2. Inject BOTH the puppeteer config and the mermaid config into the mmdc wrapper
 RUN mv /usr/local/bin/mmdc /usr/local/bin/mmdc-core && \
-    echo '#!/bin/bash\n/usr/local/bin/mmdc-core -p /opt/tdock/puppeteer-config.json "$@"' > /usr/local/bin/mmdc && \
+    echo '#!/bin/bash\n/usr/local/bin/mmdc-core -p /opt/'${IMAGE_NAME}'/puppeteer-config.json -c /opt/'${IMAGE_NAME}'/mermaid-config.json "$@"' > /usr/local/bin/mmdc && \
     chmod +x /usr/local/bin/mmdc
 
 ARG PLANTUML_TAG="v1.2026.4"
@@ -74,7 +81,7 @@ RUN curl -fL "https://github.com/plantuml/plantuml/releases/download/${PLANTUML_
     printf '#!/bin/bash\nexec java -Djava.awt.headless=true -jar /usr/local/lib/plantuml.jar "$@"\n' > /usr/local/bin/plantuml && \
     chmod +x /usr/local/bin/plantuml
 
-RUN wget -q https://raw.githubusercontent.com/pandoc-ext/diagram/main/_extensions/diagram/diagram.lua -O /opt/tdock/diagram.lua
+RUN wget -q https://raw.githubusercontent.com/pandoc-ext/diagram/main/_extensions/diagram/diagram.lua -O /opt/${IMAGE_NAME}/diagram.lua
 
 RUN echo 'if [ "$EUID" -eq 0 ]; then PS1="@\h:\w# "; else PS1="@\h:\w$ "; fi' >> /etc/bash.bashrc
 

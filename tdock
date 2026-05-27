@@ -98,7 +98,7 @@ RUN_DOCKER=(docker run -it --rm --hostname "$SCRIPT_NAME" -v "$PWD":/work -w /wo
 
 # --- Execute Custom Command or Interactive Shell ---
 if [ ${#CUSTOM_CMD[@]} -gt 0 ]; then
-    echo -e "\n[$SCRIPT_NAME] Executing command in container:\n"
+    echo -e "\n[$IMAGE_NAME] Executing command in container:\n"
     echo "${CUSTOM_CMD[*]}"
     "${RUN_DOCKER[@]}" "${CUSTOM_CMD[@]}"
     exit $?
@@ -159,13 +159,13 @@ else
     DEFAULTS_Q=$(printf "%q " "${DEFAULT_PANDOC_ARGS[@]}")
     USER_ARGS_Q=$(printf "%q " "${PANDOC_ARGS[@]}")
 
-    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/$SCRIPT_NAME/diagram.lua; "
+    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/tdock/diagram.lua;"
 fi
 
 # --- Execution Logic ---
 if [ "$WATCH" = true ]; then
-    echo "[$SCRIPT_NAME] Watching ${FILES[0]}..."
-    echo "[$SCRIPT_NAME] Executing command in container:"
+    echo "[$IMAGE_NAME] Watching ${FILES[0]}..."
+    echo "[$IMAGE_NAME] Executing command in container:"
     echo
 
     # Polling loop:
@@ -188,7 +188,7 @@ if [ "$WATCH" = true ]; then
     "
 else
     # Standard non-watch execution
-    echo -e "\n[$SCRIPT_NAME] Executing command in container:\n"
+    echo -e "\n[$IMAGE_NAME] Executing command in container:\n"
     echo "$DOCKER_CMD"
     "${RUN_DOCKER[@]}" bash -c "$DOCKER_CMD"
 fi
