@@ -9,6 +9,8 @@ PANDOC_ARGS=()
 OUT_FILE=""
 CUSTOM_CMD=()
 
+SCRIPT_NAME="$(basename "$0")"
+
 # Default to host user mapping
 DOCKER_USER="--user $(id -u):$(id -g)"
 
@@ -30,7 +32,7 @@ DEFAULT_PANDOC_ARGS=(
 )
 
 show_help() {
-    echo "Usage: ./tdock [OPTIONS] <file> [PANDOC ARGS...]"
+    echo "Usage: ./$SCRIPT_NAME [OPTIONS] <file> [PANDOC ARGS...]"
     echo ""
     echo "Options:"
     echo "  -i, --interactive Open an interactive bash shell inside the container"
@@ -40,13 +42,13 @@ show_help() {
     echo "  --help, -h        Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./tdock example.md                           (Compiles natively using defaults)"
-    echo "  ./tdock architecture.puml                    (Automatically detects diagram and renders to SVG)"
-    echo "  ./tdock doc.md -V papersize:letter           (Overrides default A4 paper size)"
-    echo "  ./tdock --watch doc.md                       (Live rebuilds output on file save)"
-    echo "  ./tdock -c ls -lart                          (Runs 'ls -lart' inside the container)"
-    echo "  ./tdock -i                                   (Opens an interactive shell in the container)"
-    echo "  ./tdock --root -i                            (Opens an interactive shell as root in the container)"
+    echo "  ./$SCRIPT_NAME example.md                      (Compiles natively using defaults)"
+    echo "  ./$SCRIPT_NAME architecture.puml               (Automatically detects diagram and renders to SVG)"
+    echo "  ./$SCRIPT_NAME doc.md -V papersize:letter      (Overrides default A4 paper size)"
+    echo "  ./$SCRIPT_NAME --watch doc.md                  (Live rebuilds output on file save)"
+    echo "  ./$SCRIPT_NAME -c ls -lart                     (Runs 'ls -lart' inside the container)"
+    echo "  ./$SCRIPT_NAME -i                              (Opens an interactive shell in the container)"
+    echo "  ./$SCRIPT_NAME --root -i                       (Opens an interactive shell as root in the container)"
 }
 
 # --- Smart Argument Parser ---
@@ -92,11 +94,11 @@ done
 
 # --- Base docker execution command built dynamically ---
 # Evaluated HERE to guarantee $DOCKER_USER reflects the --root override
-RUN_DOCKER=(docker run -it --rm --hostname pandock -v "$PWD":/work -w /work $DOCKER_USER -e HOME=/tmp "$IMAGE_NAME")
+RUN_DOCKER=(docker run -it --rm --hostname "$SCRIPT_NAME" -v "$PWD":/work -w /work $DOCKER_USER -e HOME=/tmp "$IMAGE_NAME")
 
 # --- Execute Custom Command or Interactive Shell ---
 if [ ${#CUSTOM_CMD[@]} -gt 0 ]; then
-    echo -e "\n[tdock] Executing raw command:\n"
+    echo -e "\n[$SCRIPT_NAME] Executing command in container:\n"
     echo "${CUSTOM_CMD[*]}"
     "${RUN_DOCKER[@]}" "${CUSTOM_CMD[@]}"
     exit $?
@@ -157,19 +159,20 @@ else
     DEFAULTS_Q=$(printf "%q " "${DEFAULT_PANDOC_ARGS[@]}")
     USER_ARGS_Q=$(printf "%q " "${PANDOC_ARGS[@]}")
 
-    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/tdock/diagram.lua; "
+    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/$SCRIPT_NAME/diagram.lua; "
 fi
 
 # --- Execution Logic ---
 if [ "$WATCH" = true ]; then
-    echo "[tdock] Watching ${FILES[0]}..."
-    echo "[tdock] Executing command in container on change:"
+    echo "[$SCRIPT_NAME] Watching ${FILES[0]}..."
+    echo "[$SCRIPT_NAME] Executing command in container:"
     echo
 
     # Polling loop:
     # 1. Get the current timestamp of the file.
     # 2. Loop forever, checking if the timestamp has changed.
     # 3. If it has, run the execution command.
+
     "${RUN_DOCKER[@]}" bash -c "
         LAST_MODIFIED=0
         while true; do
@@ -185,7 +188,7 @@ if [ "$WATCH" = true ]; then
     "
 else
     # Standard non-watch execution
-    echo -e "\n[tdock] Executing command in container:\n"
+    echo -e "\n[$SCRIPT_NAME] Executing command in container:\n"
     echo "$DOCKER_CMD"
     "${RUN_DOCKER[@]}" bash -c "$DOCKER_CMD"
 fi
