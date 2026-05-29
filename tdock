@@ -16,17 +16,16 @@ DOCKER_USER="--user $(id -u):$(id -g)"
 
 # --- Define Your Defaults Here ---
 DEFAULT_PANDOC_ARGS=(
+    "--pdf-engine=xelatex"
     "-V" "papersize:A4"
     "-V" "documentclass=article"
     "-V" "geometry:margin=1in"
-    "-V" "colorlinks"
-    # "-V" "lot"
-    "--toc"
-    "--pdf-engine=xelatex"
+    # "-V" "colorlinks"
+    "--table-caption-position=below"
     # "-V" "monofont=DejaVu Sans Mono"
     # "-V" "monofont=Source Code Pro"
     "-V" "monofont=Ubuntu Mono"
-    "--highlight-style=tango"
+    "--syntax-highlighting=tango"
     "-V" "header-includes=\\usepackage{hyperref} \\usepackage{cleveref} \\usepackage{float} \\floatplacement{figure}{H}"
     # "-V" "header-includes=\fvset{fontsize=\footnotesize}"
 )

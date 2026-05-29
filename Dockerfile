@@ -10,7 +10,6 @@ ARG IMAGE_NAME="tdock"
 
 RUN set -e; \
     PACKAGES="\
-        pandoc \
         texlive-xetex \
         texlive-latex-recommended \
         texlive-fonts-recommended \
@@ -54,6 +53,23 @@ RUN set -e; \
  && apt-get install -y $PACKAGES --no-install-recommends \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/*
+
+# Install the latest upstream pandoc (Ubuntu's apt version lags behind).
+# Override PANDOC_VERSION at build time to pin: --build-arg PANDOC_VERSION=3.5
+ARG PANDOC_VERSION="latest"
+RUN set -e; \
+    arch="$(dpkg --print-architecture)"; \
+    if [ "$PANDOC_VERSION" = "latest" ]; then \
+        url="$(curl -fsSL https://api.github.com/repos/jgm/pandoc/releases/latest \
+               | grep -Eo "https://[^\"]+pandoc-[0-9.]+-1-${arch}\\.deb" | head -n1)"; \
+    else \
+        url="https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-1-${arch}.deb"; \
+    fi; \
+    echo "Installing pandoc from $url"; \
+    curl -fsSL "$url" -o /tmp/pandoc.deb; \
+    dpkg -i /tmp/pandoc.deb; \
+    rm /tmp/pandoc.deb; \
+    pandoc --version | head -n1
 
 # Copy local fonts into the system font directory
 COPY fonts/ /usr/share/fonts/extra-fonts/

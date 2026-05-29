@@ -2,6 +2,13 @@
 title: Docs-as-Code Proof-of-Concept
 author: Tamás Dezső
 date: \today
+numbersections: true
+toc: true
+lof: true
+lot: true
+# mainfont: "DejaVu Sans"
+# monofont: "DejaVu Mono"
+# fontsize: 10pt
 ---
 
 # Introduction
