@@ -20,7 +20,7 @@ DEFAULT_PANDOC_ARGS=(
     # "-V" "papersize:A4"
     # "-V" "documentclass=article"
     # "-V" "geometry:margin=1in"
-    "-V" "colorlinks"
+    # "-V" "colorlinks"
     "--table-caption-position=below"
     # "-V" "monofont=DejaVu Sans Mono"
     # "-V" "monofont=Source Code Pro"

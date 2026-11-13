@@ -4,14 +4,16 @@ author: Tamás Dezső
 date: \today
 papersize: A4
 documentclass: article
-geometry: margin=1in
+geometry: margin=1.5in
 numbersections: true
 toc: true
 lof: true
 lot: true
 # mainfont: "DejaVu Sans"
-# monofont: "DejaVu Mono"
+# monofont: "Ubuntu Mono"
 # fontsize: 10pt
+# colorlinks: true
+# linkcolor: blue
 ---
 
 # Introduction
