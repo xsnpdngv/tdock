@@ -1,9 +1,10 @@
 # Dockerized Tech Documentation Compiler
 
 **Tdock** is an isolated environment for compiling Markdown into
-professional PDFs via XeLaTeX. It natively supports **PlantUML**,
-**Mermaid**, and **Graphviz** (DOT) diagram rendering, syntax
-highlighting, and common Google/Ubuntu fonts.
+professional technical documentation PDFs via XeLaTeX. It natively
+supports **PlantUML**, **Mermaid**, **WebSequence**, and **Graphviz**
+(DOT) diagram rendering, syntax highlighting, and common professional
+fonts.
 
 
 ## 1. Setup & Building
@@ -59,14 +60,27 @@ XeLaTeX can embed them perfectly.
 If you want to compile standalone diagrams for web use (SVG):
 
 ```bash
-./tdock seq-diag.puml
-./tdock webseq-diag.wsd
-./tdock mermaid-diag.mmd
-./tdock graphviz.dot
+./tdock seq-diag.puml         # PlantUML diagrams
+./tdock webseq-diag.wsd       # WebSequence diagrams (processed via PlantUML)
+./tdock mermaid-diag.mmd      # Mermaid diagrams
+./tdock graphviz.dot          # Graphviz (DOT) diagrams
 ```
+
+**Note:** WebSequence Diagram (`.wsd`) files are automatically wrapped
+with PlantUML `@startuml`/`@enduml` tags and rendered through PlantUML.
 
 
 ### Workflow Macros
 
 * Watch Mode (recompiles on save): `./tdock --watch doc.md`
 * Change code highlight theme: `./tdock doc.md --highlight-style=zenburn`
+
+
+## 3. Custom Fonts
+
+The Docker image supports custom fonts by placing them in the `fonts/`
+directory.  Fonts are automatically copied into the container during the
+build and made available to XeLaTeX and other tools.
+
+For detailed instructions on adding fonts, font sources, and usage
+examples, see [fonts/README.md](fonts/README.md).
