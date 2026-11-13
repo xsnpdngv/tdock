@@ -305,6 +305,43 @@ not_styled_ebnf = {"a", c , "a" (* Note on a *)}
 ```
 
 
+## WebSequence Diagrams
+
+- [WebSequence Diagrams Official](https://www.websequencediagrams.com/)
+- [Syntax Reference](https://www.websequencediagrams.com/reference.html)
+
+WebSequence Diagram (`.wsd`) files are automatically wrapped with PlantUML tags and rendered via PlantUML.
+
+```plantuml
+@startuml
+'| caption: WebSequence Diagram Example
+'| width: 80%
+'| placement: H
+'| label: fig:wsd
+title Authentication Flow
+participant "Client" as C
+participant "Auth Server" as A
+participant "Resource Server" as R
+
+C->A: Request Access Token (Client ID + Secret)
+activate A
+A->A: Validate Credentials
+A-->C: Access Token
+deactivate A
+
+C->R: Request Resource (with Access Token)
+activate R
+R->R: Validate Token
+alt Token Valid
+    R-->C: Return Resource Data
+else Token Expired
+    R-->C: 401 Unauthorized
+end
+deactivate R
+@enduml
+```
+
+
 ## Mermaid
 
 - [Mermaid Open-Source Intro](https://mermaid.ai/open-source/intro/)
@@ -312,7 +349,7 @@ not_styled_ebnf = {"a", c , "a" (* Note on a *)}
 ```mermaid
 %%| caption: Mermaid Flowchart Example
 %%| label: fig:mmm
-%%| width: 60%
+%%| width: 40%
 %%| placement: H
 %%{init: {'theme': 'neutral'}}%%
 graph TD;
