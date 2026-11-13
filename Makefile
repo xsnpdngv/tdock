@@ -6,7 +6,7 @@ VERSION ?= ubuntu26.04
 all: build
 
 build:
-	docker build -t $(IMAGE_NAME):$(VERSION) .
+	docker build --progress=plain -t $(IMAGE_NAME):$(VERSION) .
 
 push:
 	docker buildx create --use --name multi-arch-builder || true

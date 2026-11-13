@@ -72,7 +72,10 @@ RUN set -e; \
     pandoc --version | head -n1
 
 # Copy local fonts into the system font directory
-COPY fonts/ /usr/share/fonts/extra-fonts/
+COPY --chmod=a+rX fonts/ /usr/share/fonts/extra-fonts/
+
+# xdvipdfmx cannot embed the variable UbuntuMono[wght].ttf from fonts-ubuntu; use the static copies above
+RUN rm -f /usr/share/fonts/truetype/ubuntu/UbuntuMono*
 
 # Build font information caches
 RUN fc-cache -fv
@@ -88,7 +91,13 @@ RUN mkdir -p /opt/${IMAGE_NAME} && \
 
 # 2. Inject BOTH the puppeteer config and the mermaid config into the mmdc wrapper
 RUN mv /usr/local/bin/mmdc /usr/local/bin/mmdc-core && \
-    echo '#!/bin/bash\n/usr/local/bin/mmdc-core -p /opt/'${IMAGE_NAME}'/puppeteer-config.json -c /opt/'${IMAGE_NAME}'/mermaid-config.json "$@"' > /usr/local/bin/mmdc && \
+    printf '%s\n' \
+        '#!/bin/bash' \
+        'args=()' \
+        '# diagram.lua still passes --pdfFit, which current mermaid-cli no longer accepts' \
+        'for a in "$@"; do [ "$a" = "--pdfFit" ] || args+=("$a"); done' \
+        "exec /usr/local/bin/mmdc-core -p /opt/${IMAGE_NAME}/puppeteer-config.json -c /opt/${IMAGE_NAME}/mermaid-config.json \"\${args[@]}\"" \
+        > /usr/local/bin/mmdc && \
     chmod +x /usr/local/bin/mmdc
 
 ARG PLANTUML_TAG="v1.2026.4"
