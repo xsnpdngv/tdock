@@ -48,6 +48,8 @@ show_help() {
     echo "  ./$SCRIPT_NAME -c ls -lart                     (Runs 'ls -lart' inside the container)"
     echo "  ./$SCRIPT_NAME -i                              (Opens an interactive shell in the container)"
     echo "  ./$SCRIPT_NAME --root -i                       (Opens an interactive shell as root in the container)"
+    echo ""
+    echo "See https://github.com/xsnpdngv/tdock for more details and documentation."
 }
 
 # --- Smart Argument Parser ---
