@@ -2,6 +2,9 @@
 title: Docs-as-Code Proof-of-Concept
 author: Tamás Dezső
 date: \today
+papersize: A4
+documentclass: article
+geometry: margin=1in
 numbersections: true
 toc: true
 lof: true
