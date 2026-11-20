@@ -14,24 +14,57 @@ SCRIPT_NAME="$(basename "$0")"
 # Default to host user mapping
 DOCKER_USER="--user $(id -u):$(id -g)"
 
-# --- Define Your Defaults Here ---
+# --- Default definitions ---
+# Pandoc command-line options (cannot be overridden from the document's YAML front matter).
 DEFAULT_PANDOC_ARGS=(
     "--pdf-engine=xelatex"
-    # "-V" "papersize:A4"
-    # "-V" "documentclass=article"
-    # "-V" "geometry:margin=1in"
-    # "-V" "colorlinks"
     "--table-caption-position=below"
-    # "-V" "monofont=DejaVu Sans Mono"
-    # "-V" "monofont=Source Code Pro"
-    "-V" "monofont=Ubuntu Mono"
     "--syntax-highlighting=tango"
-    "-V" "header-includes=\\usepackage{hyperref} \\usepackage{cleveref} \\usepackage{float} \\floatplacement{figure}{H}"
-    # "-V" "header-includes=\fvset{fontsize=\footnotesize}"
 )
 
+# Default metadata (YAML). The document's YAML front matter, as well as
+# -V/-M on the command line, override these values key by key.
+DEFAULT_METADATA='
+documentclass: report
+monofont: Ubuntu Mono
+# monofont: DejaVu Sans Mono
+# monofont: Source Code Pro
+# papersize: a4
+# documentclass: article
+# geometry: margin=1in
+# colorlinks: true
+linkcolor: RoyalBlue
+urlcolor: RoyalBlue
+toccolor: black
+header-includes:
+  - \renewcommand{\arraystretch}{1.3} # adds space between table rows
+'
+
+# LaTeX preamble always added in front of the document's own header-includes.
+DEFAULT_HEADER_INCLUDES='
+\usepackage{hyperref}
+\usepackage{cleveref}
+\usepackage{float}
+\floatplacement{figure}{H}
+'
+
+# Lua filter that merges DEFAULT_HEADER_INCLUDES into the document's header-includes
+DEFAULTS_LUA_FILTER='
+function Meta(m)
+  local hi = m["header-includes"]
+  if hi == nil then
+    hi = pandoc.MetaList({})
+  elseif pandoc.utils.type(hi) ~= "List" then
+    hi = pandoc.MetaList({hi})
+  end
+  hi:insert(1, pandoc.MetaBlocks({pandoc.RawBlock("latex", os.getenv("TDOCK_HEADER_INCLUDES") or "")}))
+  m["header-includes"] = hi
+  return m
+end
+'
+
 show_help() {
-    echo "Usage: ./$SCRIPT_NAME [OPTIONS] <file> [PANDOC ARGS...]"
+    echo "Usage: $SCRIPT_NAME [OPTIONS] <file> [PANDOC ARGS...]"
     echo ""
     echo "Options:"
     echo "  -i, --interactive Open an interactive bash shell inside the container"
@@ -41,13 +74,13 @@ show_help() {
     echo "  --help, -h        Show this help message"
     echo ""
     echo "Examples:"
-    echo "  ./$SCRIPT_NAME example.md                      (Compiles natively using defaults)"
-    echo "  ./$SCRIPT_NAME architecture.puml               (Automatically detects diagram and renders to SVG)"
-    echo "  ./$SCRIPT_NAME doc.md -V papersize:letter      (Overrides default A4 paper size)"
-    echo "  ./$SCRIPT_NAME --watch doc.md                  (Live rebuilds output on file save)"
-    echo "  ./$SCRIPT_NAME -c ls -lart                     (Runs 'ls -lart' inside the container)"
-    echo "  ./$SCRIPT_NAME -i                              (Opens an interactive shell in the container)"
-    echo "  ./$SCRIPT_NAME --root -i                       (Opens an interactive shell as root in the container)"
+    echo "  ./$SCRIPT_NAME example.md                      # Compiles natively using defaults"
+    echo "  ./$SCRIPT_NAME architecture.puml               # Automatically detects diagram and renders to SVG"
+    echo "  ./$SCRIPT_NAME doc.md -V papersize:letter      # Overrides default A4 paper size"
+    echo "  ./$SCRIPT_NAME --watch doc.md                  # Live rebuilds output on file save"
+    echo "  ./$SCRIPT_NAME -c ls -lart                     # Runs 'ls -lart' inside the container"
+    echo "  ./$SCRIPT_NAME -i                              # Opens an interactive shell in the container"
+    echo "  ./$SCRIPT_NAME --root -i                       # Opens an interactive shell as root in the container"
     echo ""
     echo "See https://github.com/xsnpdngv/tdock for more details and documentation."
 }
@@ -75,7 +108,8 @@ while [[ $# -gt 0 ]]; do
             PANDOC_ARGS+=("$1" "$2")
             shift 2
             ;;
-        -V|--variable|-M|--metadata|-f|--from|-t|--to|--pdf-engine|--highlight-style|--template)
+        -V|--variable|-M|--metadata|-f|--from|-t|--to|--pdf-engine|--highlight-style|--syntax-highlighting|--template|\
+        -H|--include-in-header|-B|--include-before-body|-A|--include-after-body|--metadata-file|-d|--defaults|--bibliography|--csl|--resource-path)
             # Catch standard Pandoc options that take exactly one space-separated argument
             PANDOC_ARGS+=("$1" "$2")
             shift 2
@@ -95,7 +129,12 @@ done
 
 # --- Base docker execution command built dynamically ---
 # Evaluated HERE to guarantee $DOCKER_USER reflects the --root override
-RUN_DOCKER=(docker run -it --rm --hostname "$SCRIPT_NAME" -v "$PWD":/work -w /work $DOCKER_USER -e HOME=/tmp "$IMAGE_NAME")
+RUN_DOCKER=(docker run -it --rm --hostname "$SCRIPT_NAME" -v "$PWD":/work -w /work $DOCKER_USER -e HOME=/tmp
+            -e "TDOCK_METADATA=$DEFAULT_METADATA" -e "TDOCK_HEADER_INCLUDES=$DEFAULT_HEADER_INCLUDES"
+            -e "TDOCK_LUA_FILTER=$DEFAULTS_LUA_FILTER" "$IMAGE_NAME")
+
+# Writes the default metadata and Lua filter to files inside the container (kept literal, expanded there)
+SETUP_CMD='printf "%s" "$TDOCK_METADATA" > /tmp/tdock-defaults.yaml; printf "%s" "$TDOCK_LUA_FILTER" > /tmp/tdock-defaults.lua;'
 
 # --- Execute Custom Command or Interactive Shell ---
 if [ ${#CUSTOM_CMD[@]} -gt 0 ]; then
@@ -160,7 +199,7 @@ else
     DEFAULTS_Q=$(printf "%q " "${DEFAULT_PANDOC_ARGS[@]}")
     USER_ARGS_Q=$(printf "%q " "${PANDOC_ARGS[@]}")
 
-    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q $USER_ARGS_Q --lua-filter=/opt/tdock/diagram.lua;"
+    DOCKER_CMD="pandoc $FILES_Q $DEFAULTS_Q --metadata-file=/tmp/tdock-defaults.yaml $USER_ARGS_Q --lua-filter=/tmp/tdock-defaults.lua --lua-filter=/opt/tdock/diagram.lua;"
 fi
 
 # --- Execution Logic ---
@@ -175,6 +214,7 @@ if [ "$WATCH" = true ]; then
     # 3. If it has, run the execution command.
 
     "${RUN_DOCKER[@]}" bash -c "
+        $SETUP_CMD
         LAST_MODIFIED=0
         while true; do
             CURRENT_MODIFIED=\$(stat -c %Y \"${FILES[0]}\")
@@ -191,5 +231,5 @@ else
     # Standard non-watch execution
     echo -e "\n[$IMAGE_NAME] Executing command in container:\n"
     echo "$DOCKER_CMD"
-    "${RUN_DOCKER[@]}" bash -c "$DOCKER_CMD"
+    "${RUN_DOCKER[@]}" bash -c "$SETUP_CMD $DOCKER_CMD"
 fi

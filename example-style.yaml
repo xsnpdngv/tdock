@@ -1,0 +1,47 @@
+# tdock style file – shared layout settings for many documents.
+# Usage:  ./tdock doc.md --metadata-file=example-style.yaml
+# Keep per-document keys (title, author, date, abstract, ...) in each document's front matter.
+# Precedence: tdock defaults < this file < document front matter < -V/-M on the command line.
+
+# --- Page layout ---
+documentclass: article          # report (tdock default) | book | scrartcl | scrreprt | scrbook
+classoption: [11pt, twoside]    # 10pt | 12pt | oneside | landscape | openany | titlepage | notitlepage | draft
+papersize: a4                   # letter | a5 | b5 | legal | executive
+geometry: margin=2.5cm          # margin=1in | [top=2cm, bottom=2cm, left=3cm, right=2cm] | [inner=30mm, outer=20mm] | landscape
+fontsize: 11pt                  # 9pt | 10pt | 12pt (some classes also allow 8pt, 14pt, 17pt, 20pt)
+linestretch: 1.15               # 1 | 1.25 | 1.5 | 2
+indent: false                   # true = indent paragraphs instead of spacing them
+pagestyle: plain                # empty | headings | myheadings | fancy (needs fancyhdr in header-includes)
+lang: en-GB                     # en-US | de-DE | hu-HU | fr-FR | ... (hyphenation, "Contents" label)
+
+# --- Structure ---
+toc: true                       # false
+toc-depth: 3                    # 1 | 2 | 4 | 5
+toc-title: Contents             # any text
+numbersections: true            # false
+secnumdepth: 3                  # 0 | 1 | 2 | 4 | 5 (heading levels to number)
+lof: false                      # true = list of figures
+lot: false                      # true = list of tables
+
+# --- Fonts (run ./tdock -c fc-list : family to see what is installed) ---
+mainfont: DejaVu Serif          # Open Sans | Latin Modern Roman | any installed family
+sansfont: DejaVu Sans           # Open Sans | Latin Modern Sans | any installed family
+monofont: Ubuntu Mono           # DejaVu Sans Mono | Source Code Pro | Fira Code | JetBrains Mono
+mathfont: Latin Modern Math     # any installed OpenType math font
+# CJKmainfont: Noto Sans CJK SC # SC | TC | JP | KR; only needed for CJK text
+
+# --- Links ---
+colorlinks: true                # false = boxed links
+linkcolor: NavyBlue             # blue | red | black | RoyalBlue | OliveGreen | any xcolor name
+urlcolor: NavyBlue              # same choices as linkcolor
+citecolor: NavyBlue             # same choices as linkcolor
+toccolor: black                 # same choices as linkcolor
+
+# --- Citations (also need --citeproc on the command line) ---
+# bibliography: refs.bib        # any .bib / .json / .yaml file
+# csl: ieee.csl                 # any CSL style file (apa.csl, chicago-author-date.csl, ...)
+link-citations: true            # false
+
+# --- Command-line only (cannot be set here; pass after the file name) ---
+# --syntax-highlighting=tango   # pygments | kate | monochrome | breezedark | espresso | haddock | zenburn
+# --top-level-division=chapter  # section | part (needed for scrreprt/scrbook)
